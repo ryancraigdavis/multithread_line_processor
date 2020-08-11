@@ -1,16 +1,18 @@
 // daviryan@oregonstate.edu
 // Line Processor - Processes lines using a multithreaded consumer/producer system
 
+#define  _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <dirent.h> 
+#include <pthread.h>
 
 // Size of the buffer
 #define B1_SIZE 10
