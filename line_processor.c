@@ -17,8 +17,6 @@
 // Size of the buffer
 #define B1_SIZE 10
 
-// #define OUT_SIZE 10000
-
 // Buffers, shared resources
 char *buffer1[B1_SIZE];
 // Number of items in the buffer, shared resource
@@ -27,8 +25,6 @@ int buffer1_count = 0;
 int buffer1_pro_idx = 0;
 // Index where the consumer will pick up the next item
 int buffer1_con_idx = 0;
-// Output string that is used to hold the output buffers.
-// char *output_string;
 
 // Initialize the mutex
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -164,8 +160,8 @@ void *b1_producer(void *args) {
 		}
 		
 		char *input_line = NULL;
-    	input_line = (char *)malloc((strlen(input_line)+1)*sizeof(char));
-    	memset(input_line, '\0', strlen(input_line)+1);
+    	input_line = (char *)malloc((1000)*sizeof(char));
+    	memset(input_line, '\0', 1000);
 
     	strcpy(input_line, read_input());
 
@@ -183,35 +179,27 @@ void *b1_producer(void *args) {
 }
 
 // This function prints to stdout
-const char* write_output() {
+const char* write_output(char *output_string) {
 
-    // strcat(output_string, buffer1[buffer1_con_idx]);
+    strcat(output_string, buffer1[buffer1_con_idx]);
 
     // char *out_line = NULL;
     // out_line = (char *)malloc(1000*sizeof(char));
     // memset((char*) out_line, '\0', sizeof(*out_line));
 
     // strcpy(out_line, buffer1[buffer1_con_idx]);
-
-    // if (strlen(output_string) >= 80) {
-    // 	char print_string[81];
-    //     strncpy(print_string, output_string, 80);
-    //     output_string = output_string + 80;
-    //     fprintf(stdout,"%s",print_string);
-    // }
-
-    char *out_line = NULL;
-    out_line = (char *)malloc(1000*sizeof(char));
-    memset((char*) out_line, '\0', sizeof(*out_line));
-
-    strcpy(out_line, buffer1[buffer1_con_idx]);
-    fprintf(stdout, "%s",out_line);
-
+    printf("%s\n",output_string);
+    if (strlen(output_string) >= 80) {
+    	char print_string[81];
+        strncpy(print_string, output_string, 80);
+        output_string = output_string + 80;
+        fprintf(stdout,"%s",print_string);
+    }
 
     buffer1_con_idx = (buffer1_con_idx + 1) % B1_SIZE;
     buffer1_count--;
   
-	return out_line;
+	return output_string;
 }
 
 /*
@@ -220,6 +208,11 @@ const char* write_output() {
 void *b3_consumer(void *args) {
     // Buffer is not DONE boolean - keeps the loop going until DONE\n is found
 	bool output_bool = true;
+
+	// Output string that is used to hold the output buffers.
+	char *output_string = NULL;
+    output_string = (char *)malloc((10000)*sizeof(char));
+    memset(output_string, '\0', 10000);
 
     // Continue consuming until the END_MARKER is seen    
     while (output_bool == true) {
@@ -231,13 +224,13 @@ void *b3_consumer(void *args) {
 	    	pthread_cond_wait(&buffer1_full, &mutex);
 	    }
 
-    	char *output_line = NULL;
-    	output_line = (char *)malloc((strlen(output_line)+1)*sizeof(char));
-    	memset(output_line, '\0', strlen(output_line)+1);
+    	// char *output_line = NULL;
+    	// output_line = (char *)malloc((1000)*sizeof(char));
+    	// memset(output_line, '\0', 1000);
 
-    	strcpy(output_line, write_output());
+    	strcat(output_string, write_output(output_string));
 
-    	int output_bool_cmp = strcmp(output_line,"DONE\n");
+    	int output_bool_cmp = strcmp(output_string,"DONE\n");
         if (output_bool_cmp == 0) {
             output_bool = false;
         }
@@ -250,9 +243,6 @@ void *b3_consumer(void *args) {
 }
 
 int main(void) {
-	// output_string = (char *)malloc((OUT_SIZE+1)*sizeof(char));
-	// memset(output_string, '\0', OUT_SIZE);
-
 
     // Create the input and output threads
     pthread_t input_t, output_t;
