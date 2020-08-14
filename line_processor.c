@@ -64,10 +64,6 @@ pthread_cond_t inout_empty = PTHREAD_COND_INITIALIZER;
 int all_done = 0;
 int total_bytes = 0;
 
-void prints(char *lines) {
-    //printf("%s\n", lines);
-}
-
 // This function exchanges a "++" for a "^"
 // This code is modified from my Smallsh.c program where I replace "$$" with PID
 const char* plus_sign(char *line) {
@@ -162,7 +158,8 @@ void *b1_producer(void *args) {
         // Char will check for end of the stdin
         char* f_line;
 
-        // Lock inout mutex
+        // Lock inout mutex - moderates the speed of input/won't read a line if a line
+        // hasn't been printed yet
         pthread_mutex_lock(&inout_mutex);
 
         // Buffer is full. Wait for the consumer (out thread) to signal that the buffer has space
@@ -210,7 +207,7 @@ void *b1_producer(void *args) {
         // Buffer is full. Wait for the consumer to signal that the buffer has space
         while(buffer1_count == 1)
             pthread_cond_wait(&buffer1_empty, &b1_mutex);
-        prints("buff 1 cond 1");
+
         // Pass the inputted line to the buffer
         buffer1[buffer1_pro_idx] = strdup(line);
         
@@ -223,10 +220,6 @@ void *b1_producer(void *args) {
         
         // Unlock the mutex
         pthread_mutex_unlock(&b1_mutex);
-
-
-
-
 
     }
 
@@ -257,7 +250,6 @@ void *b1_cons_b2_pro(void *args) {
 		// Buffer is empty. Wait for the producer to signal that the buffer has data
 	    while (buffer1_count == 0)
 	    	pthread_cond_wait(&buffer1_full, &b1_mutex);
-        prints("buff 2 cond 1");
 
         // Checks to see if only DONE\n was read
         int linesep_bool_cmp = strcmp(buffer1[buffer1_con_idx],"DONE\n");
@@ -293,7 +285,7 @@ void *b1_cons_b2_pro(void *args) {
 		// Buffer is full. Wait for the consumer to signal that the buffer has space
 		while(buffer2_count == 1)
 			pthread_cond_wait(&buffer2_empty, &b2_mutex);
-        prints("buff 2 cond 2");
+
         // Puts the new spaced line into the second buffer
     	buffer2[buffer2_pro_idx] = strdup(spacesep_line);
 
@@ -331,7 +323,6 @@ void *b2_cons_b3_pro(void *args) {
         // Buffer is empty. Wait for the producer to signal that the buffer has data
         while (buffer2_count == 0)
             pthread_cond_wait(&buffer2_full, &b2_mutex);
-        prints("buff 3 cond 1");
 
         // Copy the buffer over to plus sign line
         strcpy(plus_sign_line, buffer2[buffer2_con_idx]);
@@ -367,7 +358,7 @@ void *b2_cons_b3_pro(void *args) {
         // Buffer is full. Wait for the consumer to signal that the buffer has space
         while(buffer3_count == 1)
             pthread_cond_wait(&buffer3_empty, &b3_mutex);
-        prints("buff 3 cond 2");
+
         // Puts the new carrot line into the third buffer
         buffer3[buffer3_pro_idx] = strdup(carrot_line);
 
@@ -404,11 +395,11 @@ void *b3_consumer(void *args) {
 
     	// Lock the mutex before checking if the buffer has data      
     	pthread_mutex_lock(&b3_mutex);
-        prints("buff 4 pre cond 1");
+
     	// Buffer is empty. Wait for the producer to signal that the buffer has data
 	    while (buffer3_count == 0)
 	    	pthread_cond_wait(&buffer3_full, &b3_mutex);
-        prints("buff 4 cond 1");
+
         // Checks to see if only DONE\n was written
         int output_bool_cmp = strcmp(buffer3[buffer3_con_idx],"DONE\n");
         if (output_bool_cmp == 0) {
@@ -432,12 +423,7 @@ void *b3_consumer(void *args) {
         // Unlock the mutex
         pthread_mutex_unlock(&b3_mutex);
 
-        prints("before if");
-        prints(output_line);
-        //printf("%lu\n",strlen(output_line));
-        prints("before if");
-
-        // Lock inout mutex
+        // Lock inout mutex - moderates the input output/ only unlocks if a line has been read in
         pthread_mutex_lock(&inout_mutex);
 
         // Buffer is full. Wait for the consumer (out thread) to signal that the buffer has space
@@ -465,9 +451,7 @@ void *b3_consumer(void *args) {
                 }
 
                 // Print the line
-                prints("in if");
                 printf("%s\n", line);
-                prints("in if");
             }
 
             // Total lines now equals the num of lines and stdout is flushed
