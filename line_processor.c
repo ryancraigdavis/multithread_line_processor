@@ -364,6 +364,32 @@ void *b3_consumer(void *args) {
 
     	// Concat the temp output with the buffer
 
+        // strcat(output_line, buffer3[buffer3_con_idx]);
+        // if (strlen(output_line) >= 80) {
+        //     int num_lines = strlen(output_line)/80;
+        //     for (int i = total_lines; i < num_lines; ++i) {
+        //         char line[81];
+        //         memset(line, '\0', sizeof(line));
+        //         for (int c = 0; c < 80; ++c) {
+        //             line[c] = output_line[i*80+c];
+        //         }
+
+        //         printf("%03d: %s\n", i, line);
+        //     }
+        //     total_lines = num_lines;
+        //     fflush(NULL);
+        // }
+
+        // Increment the consumer buffer count and decrement the main buffer count
+        buffer3_con_idx = (buffer3_con_idx + 1) % B3_SIZE;
+        buffer3_count--;
+
+        // Signal to the producer that the buffer has space
+        pthread_cond_signal(&buffer3_empty);
+
+        // Unlock the mutex
+        pthread_mutex_unlock(&b3_mutex);
+
         strcat(output_line, buffer3[buffer3_con_idx]);
         if (strlen(output_line) >= 80) {
             int num_lines = strlen(output_line)/80;
@@ -380,17 +406,7 @@ void *b3_consumer(void *args) {
             fflush(NULL);
         }
 
-        // Increment the consumer buffer count and decrement the main buffer count
-        buffer3_con_idx = (buffer3_con_idx + 1) % B3_SIZE;
-        buffer3_count--;
-
-        // Signal to the producer that the buffer has space
-        pthread_cond_signal(&buffer3_empty);
-
-        // Unlock the mutex
-        pthread_mutex_unlock(&b3_mutex);
-
-        printf("all done: %d, %d, %d, %d\n", all_done, buffer1_count, buffer2_count, buffer3_count);
+        //printf("all done: %d, %d, %d, %d\n", all_done, buffer1_count, buffer2_count, buffer3_count);
         if (all_done && buffer1_count == 0 && buffer2_count == 0 && buffer3_count == 0) {
             exit(1);
         }
