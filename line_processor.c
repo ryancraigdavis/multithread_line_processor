@@ -29,6 +29,10 @@ int buffer1_count = 0;
 int buffer2_count = 0;
 int buffer3_count = 0;
 
+// Shared count resource that coordinates mutexes between
+// input and output threads
+int input_output_count = 0;
+
 // Index where the producer will put the next item
 int buffer1_pro_idx = 0;
 int buffer2_pro_idx = 0;
@@ -39,10 +43,11 @@ int buffer1_con_idx = 0;
 int buffer2_con_idx = 0;
 int buffer3_con_idx = 0;
 
-// Initialize the mutexes
+// Initialize the mutexes - 3 for each buffer, 1 for input/output
 pthread_mutex_t b1_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t b2_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t b3_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t inout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Initialize the condition variables
 pthread_cond_t buffer1_full = PTHREAD_COND_INITIALIZER;
@@ -51,6 +56,8 @@ pthread_cond_t buffer2_full = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer2_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer3_full = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer3_empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t inout_full = PTHREAD_COND_INITIALIZER;
+pthread_cond_t inout_empty = PTHREAD_COND_INITIALIZER;
 
 // These global variables are used to make sure that each byte inputted 
 // makes it through to the end/ to help prevent race conditions
@@ -158,6 +165,23 @@ void *b1_producer(void *args) {
         // Read in the users input
         f_line = fgets(line, 1000, stdin);
 
+        // Lock inout mutex
+        pthread_mutex_lock(&inout_mutex);
+
+        // Buffer is full. Wait for the consumer (out thread) to signal that the buffer has space
+        while(input_output_count == 1)
+            pthread_cond_wait(&inout_empty, &inout_mutex);
+        
+        // This increments input_output count to signal to output that
+        // there is a line on its way 
+        input_output_count++;
+
+        // Signal to the consumer that the var is no longer empty
+        pthread_cond_signal(&inout_full);
+        
+        // Unlock the mutex
+        pthread_mutex_unlock(&inout_mutex);
+
         // If end of the input is found, set the bool to false and
         // all_done to 1, which will check at the end 
         // to make sure all bytes transferr
@@ -199,6 +223,10 @@ void *b1_producer(void *args) {
         
         // Unlock the mutex
         pthread_mutex_unlock(&b1_mutex);
+
+
+
+
 
     }
 
@@ -408,6 +436,23 @@ void *b3_consumer(void *args) {
         prints(output_line);
         //printf("%lu\n",strlen(output_line));
         prints("before if");
+
+        // Lock inout mutex
+        pthread_mutex_lock(&inout_mutex);
+
+        // Buffer is full. Wait for the consumer (out thread) to signal that the buffer has space
+        while(input_output_count == 0)
+            pthread_cond_wait(&inout_full, &inout_mutex);
+        
+        // This increments input_output count to signal to output that
+        // there is a line on its way 
+        input_output_count--;
+
+        // Signal to the consumer that the var is no longer empty
+        pthread_cond_signal(&inout_empty);
+        
+        // Unlock the mutex
+        pthread_mutex_unlock(&inout_mutex);
 
         // If the length of output is greater than 80 print
         if (strlen(output_line) >= 80) {
