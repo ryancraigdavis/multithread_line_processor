@@ -57,6 +57,7 @@ void prints(char* s){
 }
 
 int all_done = 0;
+int total_bytes = 0;
 
 // This function exchanges a "++" for a "^"
 // This code is modified from my Smallsh.c program where I replace "$$" with PID
@@ -80,6 +81,9 @@ const char* plus_sign(char *line) {
         }
         plus_pos++;
     }
+
+    // Change total bytes by plus count
+    total_bytes -= plus_count;
 
     // Multiply the number of instances of ++ with the len of ^
     // This will be used to shorten the line
@@ -153,6 +157,8 @@ void *b1_producer(void *args) {
         if (f_line == NULL) {
             input_bool = false;
             all_done = 1;
+        } else {
+            total_bytes += strlen(line);
         }
 
         // Checks to see if only DONE\n was read
@@ -365,6 +371,7 @@ void *b3_consumer(void *args) {
     	// Concat the temp output with the buffer
 
         strcat(output_line, buffer3[buffer3_con_idx]);
+        total_bytes -= strlen(buffer3[buffer3_con_idx]);
         // if (strlen(output_line) >= 80) {
         //     int num_lines = strlen(output_line)/80;
         //     for (int i = total_lines; i < num_lines; ++i) {
@@ -406,7 +413,7 @@ void *b3_consumer(void *args) {
             fflush(NULL);
         }
 
-        //printf("all done: %d, %d, %d, %d\n", all_done, buffer1_count, buffer2_count, buffer3_count);
+        printf("all done: %d, %d, %d, %d, Bytes: %d\n", all_done, buffer1_count, buffer2_count, buffer3_count, total_bytes);
         if (all_done && buffer1_count == 0 && buffer2_count == 0 && buffer3_count == 0) {
             exit(1);
         }
