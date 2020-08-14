@@ -413,8 +413,8 @@ void *b3_consumer(void *args) {
             fflush(NULL);
         }
 
-        printf("all done: %d, %d, %d, %d, Bytes: %d\n", all_done, buffer1_count, buffer2_count, buffer3_count, total_bytes);
-        if (all_done && buffer1_count == 0 && buffer2_count == 0 && buffer3_count == 0) {
+        //printf("all done: %d, %d, %d, %d, Bytes: %d\n", all_done, buffer1_count, buffer2_count, buffer3_count, total_bytes);
+        if (all_done && buffer1_count == 0 && buffer2_count == 0 && buffer3_count == 0 && total_bytes <= 5) {
             exit(1);
         }
     	
