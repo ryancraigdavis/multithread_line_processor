@@ -52,10 +52,8 @@ pthread_cond_t buffer2_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer3_full = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer3_empty = PTHREAD_COND_INITIALIZER;
 
-void prints(char* s){
-    printf("%s\n",s);
-}
-
+// These global variables are used to make sure that each byte inputted 
+// makes it through to the end/ to help prevent race conditions
 int all_done = 0;
 int total_bytes = 0;
 
@@ -82,7 +80,8 @@ const char* plus_sign(char *line) {
         plus_pos++;
     }
 
-    // Change total bytes by plus count
+    // Change total bytes by plus count - as bytes are subtracted
+    // because of ++ to ^, that extra byte must be subtracted from the count
     total_bytes -= plus_count;
 
     // Multiply the number of instances of ++ with the len of ^
@@ -135,47 +134,59 @@ const char* plus_sign(char *line) {
     return carrot_line;
 }
 
-// Input producer thread - calls the read_input function
+// Input producer thread - reads input
 void *b1_producer(void *args) {
+
     // Buffer is not DONE boolean - keeps the loop going until DONE\n is found
     bool input_bool = true;
 
-    // Lock the mutex before checking where there is space in the buffer
+    // Lock the mutex before checking whether there is space in the buffer
     while (input_bool == true) {
 
-
-        // Call read method and copy the result to input_line
         // Variable for the input
         char *line = NULL;
         line = (char *)malloc(1000*sizeof(char));
         memset((char*) line, '\0', sizeof(*line));
 
+        // Char will check for end of the stdin
         char* f_line;
+
         // Read in the users input
         f_line = fgets(line, 1000, stdin);
 
+        // If end of the input is found, set the bool to false and
+        // all_done to 1, which will check at the end 
+        // to make sure all bytes transferr
         if (f_line == NULL) {
             input_bool = false;
             all_done = 1;
+
+        // Other wise increase total bytes by the line read in
+        // This will allow us to keep track of how many bytes have
+        // been passed in
         } else {
             total_bytes += strlen(line);
         }
 
         // Checks to see if only DONE\n was read
+        // Additional check over f_line
         int input_bool_cmp = strcmp(line,"DONE\n");
         if (input_bool_cmp == 0) {
             input_bool = false;
             all_done = 1;
         }
 
+        // Lock buffer mutex
         pthread_mutex_lock(&b1_mutex);
 
         // Buffer is full. Wait for the consumer to signal that the buffer has space
         while(buffer1_count == 1)
             pthread_cond_wait(&buffer1_empty, &b1_mutex);
         
+        // Pass the inputted line to the buffer
         buffer1[buffer1_pro_idx] = strdup(line);
-    
+        
+        // Increase the buffer counts by 1
         buffer1_pro_idx = (buffer1_pro_idx + 1) % B1_SIZE;
         buffer1_count++;
         
@@ -190,7 +201,7 @@ void *b1_producer(void *args) {
     return NULL;
 }
 
-// Input consumer and line separation producer thread - calls the line_separator function
+// Input consumer and line separation producer thread
 void *b1_cons_b2_pro(void *args) {
 	// Buffer is not DONE boolean - keeps the loop going until DONE\n is found
 	bool linesep_bool = true;
@@ -198,6 +209,7 @@ void *b1_cons_b2_pro(void *args) {
 	// Lock the mutex before checking where there is space in the buffer
     while (linesep_bool == true) {
 
+        // Lock buffer 1 to begin receiving the value from buffer 1
 		pthread_mutex_lock(&b1_mutex);
 
 		// Buffer is empty. Wait for the producer to signal that the buffer has data
@@ -219,8 +231,12 @@ void *b1_cons_b2_pro(void *args) {
         char *spacesep_line = NULL;
         spacesep_line = (char *)malloc((1100)*sizeof(char));
         memset(spacesep_line, '\0', 1100);
+
+        // Copy the line from the buffer to the space line
         strcpy(spacesep_line, buffer1[buffer1_con_idx]);
 
+        // Loop through each char of the input line,
+        // when \n is found, replace with a space
         for (int i = 0; i < strlen(spacesep_line); ++i) {
             if (spacesep_line[i] == '\n'){
                 spacesep_line[i] = ' ';
@@ -263,12 +279,14 @@ void *b1_cons_b2_pro(void *args) {
 
 // Line sep consumer and plus sign producer thread - calls the plus function
 void *b2_cons_b3_pro(void *args) {
+
     // Buffer is not DONE boolean - keeps the loop going until DONE\n is found
     bool plus_bool = true;
 
     // Lock the mutex before checking where there is space in the buffer
     while (plus_bool == true) {
 
+        // Lock the buffer
         pthread_mutex_lock(&b2_mutex);
 
         // Buffer is empty. Wait for the producer to signal that the buffer has data
@@ -332,7 +350,7 @@ void *b2_cons_b3_pro(void *args) {
     return NULL;
 }
 
-// Output consumer thread - takes from buffer 3, calls the write_output function
+// Output consumer thread - takes from buffer 3, writes to stdout
 void *b3_consumer(void *args) {
 
     // Output line - used for printing, checking for done, and holding extra chars
@@ -340,6 +358,7 @@ void *b3_consumer(void *args) {
     output_line = (char *)malloc((10000)*sizeof(char));
     memset(output_line, '\0', 10000);
 
+    // Keeps track of total lines being written
     int total_lines = 0;
 
     // Buffer is not DONE boolean - keeps the loop going until DONE\n is found
@@ -361,31 +380,12 @@ void *b3_consumer(void *args) {
             output_bool = false;
         }
 
-        // Intermediate Output line - copy for buffer
-        char *temp_output_line = NULL;
-        temp_output_line = (char *)malloc((1100)*sizeof(char));
-        memset(temp_output_line, '\0', 1100);
-
-        // Concatenate the intermediate output with the more global output which holds chars
-
-    	// Concat the temp output with the buffer
-
+    	// Concat the output with the buffer
         strcat(output_line, buffer3[buffer3_con_idx]);
-        total_bytes -= strlen(buffer3[buffer3_con_idx]);
-        // if (strlen(output_line) >= 80) {
-        //     int num_lines = strlen(output_line)/80;
-        //     for (int i = total_lines; i < num_lines; ++i) {
-        //         char line[81];
-        //         memset(line, '\0', sizeof(line));
-        //         for (int c = 0; c < 80; ++c) {
-        //             line[c] = output_line[i*80+c];
-        //         }
 
-        //         printf("%03d: %s\n", i, line);
-        //     }
-        //     total_lines = num_lines;
-        //     fflush(NULL);
-        // }
+        // Subtract the length of the buffer from total bytes
+        // This indicates that the input line has made it to printing
+        total_bytes -= strlen(buffer3[buffer3_con_idx]);
 
         // Increment the consumer buffer count and decrement the main buffer count
         buffer3_con_idx = (buffer3_con_idx + 1) % B3_SIZE;
@@ -397,9 +397,15 @@ void *b3_consumer(void *args) {
         // Unlock the mutex
         pthread_mutex_unlock(&b3_mutex);
 
-        // strcat(output_line, buffer3[buffer3_con_idx]);
+        // If the length of output is greater than 80 print
         if (strlen(output_line) >= 80) {
+
+            // Num of lines = num of output lines
             int num_lines = strlen(output_line)/80;
+
+            // For loop loops through the additional lines brought in
+            // line then becomes the leftover chars from the last line, and the
+            // new chars up to 80
             for (int i = total_lines; i < num_lines; ++i) {
                 char line[81];
                 memset(line, '\0', sizeof(line));
@@ -407,19 +413,25 @@ void *b3_consumer(void *args) {
                     line[c] = output_line[i*80+c];
                 }
 
-                printf("%03d: %s\n", i, line);
+                // Print the line
+                printf("%s\n", line);
             }
+
+            // Total lines now equals the num of lines and stdout is flushed
             total_lines = num_lines;
             fflush(NULL);
         }
 
-        //printf("all done: %d, %d, %d, %d, Bytes: %d\n", all_done, buffer1_count, buffer2_count, buffer3_count, total_bytes);
+        // Due to time constraints, uses this exit condition instead of implementing appropriate mutexes
+        // around each global variable/ implementing additional thread coordination from threads 1 to 4
+        // Checks for all of the buffers to be empty (from each thread), for all_done var to be = to 1
+        // (from the input thread indicating DONE\n has been passed) and checks to make sure the vast majority
+        // of inputted bytes have also been printed out by thread 4
         if (all_done && buffer1_count == 0 && buffer2_count == 0 && buffer3_count == 0 && total_bytes <= 5) {
             exit(1);
         }
     	
     }
-
     return NULL;
 }
 
