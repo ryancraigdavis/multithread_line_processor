@@ -390,7 +390,7 @@ void *b3_consumer(void *args) {
         // Unlock the mutex
         pthread_mutex_unlock(&b3_mutex);
 
-        // printf("all done: %d, %d, %d, %d\n", all_done, buffer1_count, buffer2_count, buffer3_count);
+        printf("all done: %d, %d, %d, %d\n", all_done, buffer1_count, buffer2_count, buffer3_count);
         if (all_done && buffer1_count == 0 && buffer2_count == 0 && buffer3_count == 0) {
             exit(1);
         }
