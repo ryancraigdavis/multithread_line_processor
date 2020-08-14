@@ -162,15 +162,15 @@ void *b1_producer(void *args) {
         // Char will check for end of the stdin
         char* f_line;
 
-        // Read in the users input
-        f_line = fgets(line, 1000, stdin);
-
         // Lock inout mutex
         pthread_mutex_lock(&inout_mutex);
 
         // Buffer is full. Wait for the consumer (out thread) to signal that the buffer has space
         while(input_output_count == 1)
             pthread_cond_wait(&inout_empty, &inout_mutex);
+
+        // Read in the users input
+        f_line = fgets(line, 1000, stdin);
         
         // This increments input_output count to signal to output that
         // there is a line on its way 
@@ -448,12 +448,6 @@ void *b3_consumer(void *args) {
         // there is a line on its way 
         input_output_count--;
 
-        // Signal to the consumer that the var is no longer empty
-        pthread_cond_signal(&inout_empty);
-        
-        // Unlock the mutex
-        pthread_mutex_unlock(&inout_mutex);
-
         // If the length of output is greater than 80 print
         if (strlen(output_line) >= 80) {
 
@@ -480,6 +474,12 @@ void *b3_consumer(void *args) {
             total_lines = num_lines;
             fflush(NULL);
         }
+
+        // Signal to the consumer that the var is no longer empty
+        pthread_cond_signal(&inout_empty);
+        
+        // Unlock the mutex
+        pthread_mutex_unlock(&inout_mutex);
 
         // Due to time constraints, uses this exit condition instead of implementing appropriate mutexes
         // around each global variable/ implementing additional thread coordination from threads 1 to 4
