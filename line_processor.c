@@ -364,7 +364,7 @@ void *b3_consumer(void *args) {
 
     	// Concat the temp output with the buffer
 
-        // strcat(output_line, buffer3[buffer3_con_idx]);
+        strcat(output_line, buffer3[buffer3_con_idx]);
         // if (strlen(output_line) >= 80) {
         //     int num_lines = strlen(output_line)/80;
         //     for (int i = total_lines; i < num_lines; ++i) {
@@ -390,7 +390,7 @@ void *b3_consumer(void *args) {
         // Unlock the mutex
         pthread_mutex_unlock(&b3_mutex);
 
-        strcat(output_line, buffer3[buffer3_con_idx]);
+        // strcat(output_line, buffer3[buffer3_con_idx]);
         if (strlen(output_line) >= 80) {
             int num_lines = strlen(output_line)/80;
             for (int i = total_lines; i < num_lines; ++i) {
