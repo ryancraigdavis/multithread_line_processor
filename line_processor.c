@@ -363,8 +363,7 @@ void *b3_consumer(void *args) {
         // Concatenate the intermediate output with the more global output which holds chars
 
     	// Concat the temp output with the buffer
-    	// strcat(temp_output_line, buffer3[buffer3_con_idx]);
-        prints(buffer3[buffer3_con_idx]);
+
         strcat(output_line, buffer3[buffer3_con_idx]);
         if (strlen(output_line) >= 80) {
             int num_lines = strlen(output_line)/80;
@@ -374,7 +373,7 @@ void *b3_consumer(void *args) {
                 for (int c = 0; c < 80; ++c) {
                     line[c] = output_line[i*80+c];
                 }
-                // printf("%s\n", line);
+
                 printf("%03d: %s\n", i, line);
             }
             total_lines = num_lines;
